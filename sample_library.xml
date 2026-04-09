@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DJ_PLAYLISTS Version="1.0.0">
+  <PRODUCT Name="rekordbox" Version="7.2.11" Company="AlphaTheta"/>
+  <COLLECTION Entries="8">
+    <TRACK TrackID="1001" Name="Summer Vibes" Artist="Demo Artist 1"
+           Genre="House" Kind="MP3 File" Size="10485760" TotalTime="245"
+           AverageBpm="128.00" DateAdded="2024-01-15"
+           PlayCount="25" Rating="0"
+           Location="file://localhost/demo/tracks/1001" Remixer=""
+           Tonality="1A" Label="Demo Records" Mix="">
+      <TEMPO Inizio="0.025" Bpm="128.00" Metro="4/4" Battito="1"/>
+    </TRACK>
+    <TRACK TrackID="1002" Name="Ocean Waves" Artist="Demo Artist 2"
+           Genre="Deep House" Kind="MP3 File" Size="9437184" TotalTime="198"
+           AverageBpm="122.50" DateAdded="2024-01-16"
+           PlayCount="18" Rating="0"
+           Location="file://localhost/demo/tracks/1002" Remixer=""
+           Tonality="2A" Label="Deep Sounds" Mix="">
+      <TEMPO Inizio="0.030" Bpm="122.50" Metro="4/4" Battito="1"/>
+    </TRACK>
+    <TRACK TrackID="1003" Name="Midnight Groove" Artist="Demo Artist 3"
+           Genre="Techno" Kind="MP3 File" Size="11534336" TotalTime="289"
+           AverageBpm="135.00" DateAdded="2024-01-17"
+           PlayCount="32" Rating="0"
+           Location="file://localhost/demo/tracks/1003" Remixer=""
+           Tonality="3A" Label="Techno Labs" Mix="">
+      <TEMPO Inizio="0.020" Bpm="135.00" Metro="4/4" Battito="1"/>
+    </TRACK>
+    <TRACK TrackID="1004" Name="Forest Dreams" Artist="Demo Artist 4"
+           Genre="Ambient" Kind="MP3 File" Size="7864320" TotalTime="164"
+           AverageBpm="110.00" DateAdded="2024-01-18"
+           PlayCount="12" Rating="0"
+           Location="file://localhost/demo/tracks/1004" Remixer=""
+           Tonality="4A" Label="Ambient Collective" Mix="">
+      <TEMPO Inizio="0.035" Bpm="110.00" Metro="4/4" Battito="1"/>
+    </TRACK>
+    <TRACK TrackID="1005" Name="City Lights" Artist="Demo Artist 5"
+           Genre="Progressive House" Kind="MP3 File" Size="13631488" TotalTime="312"
+           AverageBpm="132.00" DateAdded="2024-01-19"
+           PlayCount="28" Rating="0"
+           Location="file://localhost/demo/tracks/1005" Remixer=""
+           Tonality="5A" Label="Progressive Sounds" Mix="">
+      <TEMPO Inizio="0.028" Bpm="132.00" Metro="4/4" Battito="1"/>
+    </TRACK>
+    <TRACK TrackID="1006" Name="Mountain High" Artist="Demo Artist 6"
+           Genre="Trance" Kind="MP3 File" Size="12582912" TotalTime="267"
+           AverageBpm="140.00" DateAdded="2024-01-20"
+           PlayCount="21" Rating="0"
+           Location="file://localhost/demo/tracks/1006" Remixer=""
+           Tonality="6A" Label="Trance Records" Mix="">
+      <TEMPO Inizio="0.022" Bpm="140.00" Metro="4/4" Battito="1"/>
+    </TRACK>
+    <TRACK TrackID="1007" Name="Desert Wind" Artist="Demo Artist 7"
+           Genre="Dubstep" Kind="MP3 File" Size="9961472" TotalTime="221"
+           AverageBpm="138.00" DateAdded="2024-01-21"
+           PlayCount="15" Rating="0"
+           Location="file://localhost/demo/tracks/1007" Remixer=""
+           Tonality="7A" Label="Dubstep Central" Mix="">
+      <TEMPO Inizio="0.026" Bpm="138.00" Metro="4/4" Battito="1"/>
+    </TRACK>
+    <TRACK TrackID="1008" Name="Starry Night" Artist="Demo Artist 8"
+           Genre="UK Garage" Kind="MP3 File" Size="8912896" TotalTime="187"
+           AverageBpm="130.00" DateAdded="2024-01-22"
+           PlayCount="19" Rating="0"
+           Location="file://localhost/demo/tracks/1008" Remixer=""
+           Tonality="8A" Label="Garage Classics" Mix="">
+      <TEMPO Inizio="0.032" Bpm="130.00" Metro="4/4" Battito="1"/>
+    </TRACK>
+  </COLLECTION>
+</DJ_PLAYLISTS>

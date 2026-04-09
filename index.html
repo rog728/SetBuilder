@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Set Planner</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #111;
+    --surface:  #1a1a1a;
+    --surface2: #222;
+    --border:   #2e2e2e;
+    --text:     #e8e8e8;
+    --muted:    #888;
+    --accent:   #7c5cfc;
+    --green:    #3ecf8e;
+    --amber:    #f0a000;
+    --red:      #e84040;
+    --radius:   8px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.5; }
+
+  /* ── layout ── */
+  #app { display: grid; grid-template-columns: 1fr 360px; height: 100vh; overflow: hidden; }
+  #library-panel { display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; }
+  #set-panel     { display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── top bars ── */
+  .panel-header { padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+  .panel-title  { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+
+  /* ── search / filters ── */
+  #search-row { display: flex; gap: 8px; }
+  input[type="text"], select {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); padding: 7px 10px; font-size: 13px; font-family: inherit; outline: none;
+  }
+  input[type="text"] { flex: 1; }
+  input[type="text"]:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+
+  #filter-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  #filter-row select { flex: 1; min-width: 100px; }
+
+  /* ── stats bar ── */
+  #stats-bar { padding: 8px 16px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+
+  /* ── track list ── */
+  #track-list { overflow-y: auto; flex: 1; }
+  .track-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background .1s;
+  }
+  .track-item:hover { background: var(--surface2); }
+  .track-item.in-set { opacity: .4; pointer-events: none; }
+
+  .track-main { flex: 1; min-width: 0; }
+  .track-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track-artist { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; border-radius: 5px;
+    padding: 2px 7px; white-space: nowrap; flex-shrink: 0;
+  }
+  .badge-key  { color: #fff; }
+  .badge-bpm  { background: #1e1e1e; color: var(--muted); border: 1px solid var(--border); }
+  .badge-good { background: #0d2e1e; color: var(--green); }
+  .badge-warn { background: #2e1e00; color: var(--amber); }
+  .badge-bad  { background: #2e0d0d; color: var(--red); }
+
+  .add-btn {
+    background: none; border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--muted); padding: 3px 8px; cursor: pointer; font-size: 12px; transition: all .15s;
+    flex-shrink: 0;
+  }
+  .add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── set panel ── */
+  #set-header { padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+  #set-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .metric { background: var(--surface2); border-radius: var(--radius); padding: 8px 10px; }
+  .metric-label { font-size: 11px; color: var(--muted); }
+  .metric-value { font-size: 18px; font-weight: 600; margin-top: 2px; }
+
+  #set-list { overflow-y: auto; flex: 1; padding: 8px 0; }
+
+  .set-track {
+    padding: 0 12px 0 12px;
+    margin-bottom: 2px;
+  }
+  .set-track-inner {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2); border-radius: var(--radius);
+    padding: 8px 10px; border: 1px solid var(--border);
+  }
+  .set-num { font-size: 12px; color: var(--muted); width: 18px; text-align: right; flex-shrink: 0; }
+  .set-main { flex: 1; min-width: 0; }
+  .set-name   { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .set-artist { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .remove-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px;
+    padding: 0 4px; line-height: 1; flex-shrink: 0;
+  }
+  .remove-btn:hover { color: var(--red); }
+
+  .transition-indicator {
+    display: flex; align-items: center; gap: 8px;
+    padding: 3px 12px 3px 42px;
+    font-size: 11px;
+  }
+  .t-bar { width: 2px; height: 18px; border-radius: 1px; flex-shrink: 0; }
+
+  #empty-set {
+    padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px;
+  }
+
+  #set-footer { padding: 12px 16px; border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+  #clear-btn {
+    width: 100%; background: none; border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--muted); padding: 8px; cursor: pointer; font-size: 13px;
+  }
+  #clear-btn:hover { border-color: var(--red); color: var(--red); }
+
+  /* ── loading / error ── */
+  #loading { display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; gap: 12px; color: var(--muted); }
+  #error-msg { display: none; background: #2e0d0d; color: var(--red); border: 1px solid var(--red); border-radius: var(--radius); padding: 16px; margin: 16px; font-size: 13px; line-height: 1.6; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div style="font-size:24px;">🎛️</div>
+  <div>Loading library…</div>
+</div>
+
+<div id="app" style="display:none;">
+
+  <!-- ── LEFT: library ── -->
+  <div id="library-panel">
+    <div class="panel-header">
+      <div class="panel-title">Library</div>
+      <div id="search-row">
+        <input type="text" id="search" placeholder="Search tracks or artists…">
+      </div>
+      <div id="filter-row">
+        <select id="filter-key">
+          <option value="">All keys</option>
+        </select>
+        <select id="filter-bpm-min">
+          <option value="">Min BPM</option>
+        </select>
+        <select id="filter-bpm-max">
+          <option value="">Max BPM</option>
+        </select>
+        <select id="sort-by">
+          <option value="name">Sort: Name</option>
+          <option value="artist">Sort: Artist</option>
+          <option value="bpm">Sort: BPM</option>
+          <option value="play_count">Sort: Plays</option>
+        </select>
+      </div>
+    </div>
+    <div id="stats-bar">Loading…</div>
+    <div id="error-msg"></div>
+    <div id="track-list"></div>
+  </div>
+
+  <!-- ── RIGHT: set ── -->
+  <div id="set-panel">
+    <div id="set-header">
+      <div class="panel-title">Set</div>
+      <div id="set-metrics">
+        <div class="metric">
+          <div class="metric-label">Tracks</div>
+          <div class="metric-value" id="m-tracks">0</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Runtime</div>
+          <div class="metric-value" id="m-runtime">0:00</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">BPM range</div>
+          <div class="metric-value" id="m-bpm">—</div>
+        </div>
+      </div>
+    </div>
+    <div id="set-list"></div>
+    <div id="set-footer">
+      <button id="clear-btn">Clear set</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Camelot compatibility ──────────────────────────────────────────────────
+const CAMELOT_NUM = 12;
+
+function parseKey(k) {
+  if (!k) return null;
+  const m = k.match(/^(\d+)([AB])$/i);
+  if (!m) return null;
+  return { num: parseInt(m[1]), mode: m[2].toUpperCase() };
+}
+
+function keyScore(a, b) {
+  // Returns: 'same' | 'compatible' | 'close' | 'jump'
+  const ka = parseKey(a), kb = parseKey(b);
+  if (!ka || !kb) return 'jump';
+  if (ka.num === kb.num && ka.mode === kb.mode) return 'same';
+  // same number, different mode (e.g. 8A → 8B)
+  if (ka.num === kb.num) return 'compatible';
+  // adjacent number, same mode (e.g. 8A → 9A or 7A)
+  const diff = Math.abs(ka.num - kb.num);
+  const wrapped = Math.min(diff, CAMELOT_NUM - diff);
+  if (wrapped === 1 && ka.mode === kb.mode) return 'compatible';
+  return 'jump';
+}
+
+function keyColor(key) {
+  const parsed = parseKey(key);
+  if (!parsed) return '#666'; // fallback gray
+  // Map 1-12 to rainbow hues: 0° (red) to 330° in 30° steps
+  const hue = ((parsed.num - 1) * 30) % 360;
+  return `hsl(${hue}, 70%, 50%)`;
+}
+
+function bpmDiff(a, b) { return Math.abs(a - b); }
+
+function transitionLabel(trackA, trackB) {
+  const ks = keyScore(trackA.key, trackB.key);
+  const bd = bpmDiff(trackA.bpm, trackB.bpm);
+
+  let keyText = { same: 'same key', compatible: 'compatible key', close: 'close key', jump: 'key jump' }[ks];
+  let bpmText = bd === 0 ? '±0 BPM' : `${bd > 0 ? '+' : ''}${bd.toFixed(1)} BPM`;
+
+  let cls;
+  if (ks === 'same' && bd <= 2)        cls = 'good';
+  else if (ks === 'compatible' && bd <= 4) cls = 'good';
+  else if (ks === 'jump' && bd > 6)    cls = 'bad';
+  else                                 cls = 'warn';
+
+  return { label: `${bpmText} · ${keyText}`, cls };
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let allTracks = [];
+let setTracks = [];
+let filtered  = [];
+
+// ── DOM refs ──────────────────────────────────────────────────────────────
+const trackList   = document.getElementById('track-list');
+const setList     = document.getElementById('set-list');
+const statsBar    = document.getElementById('stats-bar');
+const searchEl    = document.getElementById('search');
+const filterKey   = document.getElementById('filter-key');
+const filterBpmMin= document.getElementById('filter-bpm-min');
+const filterBpmMax= document.getElementById('filter-bpm-max');
+const sortBy      = document.getElementById('sort-by');
+const errorMsg    = document.getElementById('error-msg');
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function fmt(secs) {
+  const m = Math.floor(secs / 60), s = secs % 60;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function fmtRuntime(secs) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+// ── Populate filters ───────────────────────────────────────────────────────
+function populateFilters() {
+  const keys = [...new Set(allTracks.map(t => t.key))].sort((a,b) => {
+    const pa = parseKey(a), pb = parseKey(b);
+    if (!pa || !pb) return 0;
+    if (pa.num !== pb.num) return pa.num - pb.num;
+    return pa.mode.localeCompare(pb.mode);
+  });
+  keys.forEach(k => {
+    const o = document.createElement('option');
+    o.value = o.textContent = k;
+    filterKey.appendChild(o);
+  });
+
+  const bpms = allTracks.map(t => Math.round(t.bpm)).filter(Boolean);
+  const minBpm = Math.min(...bpms), maxBpm = Math.max(...bpms);
+  const step = 5;
+  for (let b = Math.floor(minBpm/step)*step; b <= maxBpm; b += step) {
+    const oa = document.createElement('option');
+    oa.value = oa.textContent = b;
+    filterBpmMin.appendChild(oa);
+    const ob = document.createElement('option');
+    ob.value = ob.textContent = b;
+    filterBpmMax.appendChild(ob);
+  }
+}
+
+// ── Filter + render library ────────────────────────────────────────────────
+function applyFilters() {
+  const q   = searchEl.value.toLowerCase();
+  const key = filterKey.value;
+  const minB = filterBpmMin.value ? +filterBpmMin.value : 0;
+  const maxB = filterBpmMax.value ? +filterBpmMax.value : Infinity;
+  const sort = sortBy.value;
+
+  filtered = allTracks.filter(t => {
+    if (q && !t.name.toLowerCase().includes(q) && !t.artist.toLowerCase().includes(q)) return false;
+    if (key && t.key !== key) return false;
+    if (t.bpm < minB || t.bpm > maxB) return false;
+    return true;
+  });
+
+  filtered.sort((a,b) => {
+    if (sort === 'bpm')        return a.bpm - b.bpm;
+    if (sort === 'play_count') return b.play_count - a.play_count;
+    if (sort === 'artist')     return a.artist.localeCompare(b.artist);
+    return a.name.localeCompare(b.name);
+  });
+
+  renderLibrary();
+}
+
+function renderLibrary() {
+  const setIds = new Set(setTracks.map(t => t.id));
+  statsBar.textContent = `${filtered.length.toLocaleString()} tracks`;
+
+  trackList.innerHTML = '';
+  filtered.forEach(track => {
+    const inSet = setIds.has(track.id);
+    const div = document.createElement('div');
+    div.className = 'track-item' + (inSet ? ' in-set' : '');
+    div.innerHTML = `
+      <div class="track-main">
+        <div class="track-name">${esc(track.name)}</div>
+        <div class="track-artist">${esc(track.artist || '—')}</div>
+      </div>
+      <span class="badge badge-key" style="background: ${keyColor(track.key)}">${esc(track.key)}</span>
+      <span class="badge badge-bpm">${track.bpm}</span>
+      ${!inSet ? `<button class="add-btn" title="Add to set">+</button>` : ''}
+    `;
+    if (!inSet) {
+      div.querySelector('.add-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        addToSet(track);
+      });
+    }
+    trackList.appendChild(div);
+  });
+}
+
+// ── Set management ─────────────────────────────────────────────────────────
+function addToSet(track) {
+  setTracks.push(track);
+  renderSet();
+  renderLibrary();
+}
+
+function removeFromSet(idx) {
+  setTracks.splice(idx, 1);
+  renderSet();
+  renderLibrary();
+}
+
+function renderSet() {
+  // Update metrics
+  document.getElementById('m-tracks').textContent = setTracks.length;
+  const totalSecs = setTracks.reduce((s,t) => s + t.duration, 0);
+  document.getElementById('m-runtime').textContent = fmtRuntime(totalSecs);
+  if (setTracks.length > 1) {
+    const bpms = setTracks.map(t => t.bpm).filter(Boolean);
+    document.getElementById('m-bpm').textContent =
+      `${Math.min(...bpms)}–${Math.max(...bpms)}`;
+  } else {
+    document.getElementById('m-bpm').textContent = setTracks.length === 1 ? setTracks[0].bpm : '—';
+  }
+
+  // Render list
+  setList.innerHTML = '';
+
+  if (setTracks.length === 0) {
+    setList.innerHTML = '<div id="empty-set">Click + on a track to add it to your set</div>';
+    return;
+  }
+
+  setTracks.forEach((track, i) => {
+    // Transition indicator between tracks
+    if (i > 0) {
+      const prev = setTracks[i-1];
+      const { label, cls } = transitionLabel(prev, track);
+      const color = { good: '#3ecf8e', warn: '#f0a000', bad: '#e84040' }[cls];
+      const badgeCls = `badge-${cls}`;
+      const ind = document.createElement('div');
+      ind.className = 'transition-indicator';
+      ind.innerHTML = `<div class="t-bar" style="background:${color}"></div>
+        <span class="badge ${badgeCls}">${label}</span>`;
+      setList.appendChild(ind);
+    }
+
+    const wrap = document.createElement('div');
+    wrap.className = 'set-track';
+    wrap.innerHTML = `
+      <div class="set-track-inner">
+        <span class="set-num">${i+1}</span>
+        <div class="set-main">
+          <div class="set-name">${esc(track.name)}</div>
+          <div class="set-artist">${esc(track.artist || '—')} · <span class="badge badge-key" style="background: ${keyColor(track.key)}">${esc(track.key)}</span> · ${track.bpm} BPM · ${fmt(track.duration)}</div>
+        </div>
+        <button class="remove-btn" title="Remove">×</button>
+      </div>
+    `;
+    wrap.querySelector('.remove-btn').addEventListener('click', () => removeFromSet(i));
+    setList.appendChild(wrap);
+  });
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Events ────────────────────────────────────────────────────────────────
+searchEl.addEventListener('input', applyFilters);
+filterKey.addEventListener('change', applyFilters);
+filterBpmMin.addEventListener('change', applyFilters);
+filterBpmMax.addEventListener('change', applyFilters);
+sortBy.addEventListener('change', applyFilters);
+document.getElementById('clear-btn').addEventListener('click', () => {
+  setTracks = [];
+  renderSet();
+  renderLibrary();
+});
+
+// ── Load library.json ─────────────────────────────────────────────────────
+fetch('library.json')
+  .then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  })
+  .then(data => {
+    allTracks = data.tracks;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'grid';
+    populateFilters();
+    applyFilters();
+    renderSet();
+  })
+  .catch(err => {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'grid';
+    errorMsg.style.display = 'block';
+    errorMsg.innerHTML = `
+      <strong>Could not load library.json</strong><br><br>
+      Make sure <code>library.json</code> is in the same folder as this HTML file.<br>
+      Run: <code>python3 parse_library.py RKlibrary.xml</code><br><br>
+      <em>Error: ${err.message}</em>
+    `;
+  });
+</script>
+</body>
+</html>
