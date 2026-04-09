@@ -2,3 +2,4 @@ RKlibrary.xml
 library.json
 *.xml
 !sample_library.xml
+.vscode

@@ -126,6 +126,27 @@
     color: var(--muted); padding: 8px; cursor: pointer; font-size: 13px;
   }
   #clear-btn:hover { border-color: var(--red); color: var(--red); }
+  
+  #export-btn {
+    width: 100%; background: none; border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--muted); padding: 8px; cursor: pointer; font-size: 13px; transition: all .15s;
+  }
+  #export-btn:hover { border-color: var(--accent); color: var(--accent); }
+  
+  #export-format {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); padding: 8px; font-size: 13px; font-family: inherit; cursor: pointer;
+  }
+  #export-format:focus { border-color: var(--accent); }
+  
+  #import-btn {
+    width: 100%; background: none; border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--muted); padding: 8px; cursor: pointer; font-size: 13px; transition: all .15s;
+  }
+  #import-btn:hover { border-color: var(--accent); color: var(--accent); }
+  
+  .set-track.dragging { opacity: 0.5; }
+  .set-track.drag-over { border-top: 2px solid var(--accent); }
 
   /* ── loading / error ── */
   #loading { display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; gap: 12px; color: var(--muted); }
@@ -149,7 +170,7 @@
   <!-- ── LEFT: library ── -->
   <div id="library-panel">
     <div class="panel-header">
-      <div class="panel-title">Library</div>
+      <div class="panel-title">Library!</div>
       <div id="search-row">
         <input type="text" id="search" placeholder="Search tracks or artists…">
       </div>
@@ -180,6 +201,12 @@
   <div id="set-panel">
     <div id="set-header">
       <div class="panel-title">Set</div>
+      <div style="margin-bottom: 12px;">
+        <input type="file" id="import-file-input" accept=".csv" style="display: none;">
+        <button id="import-btn" style="width: 100%; background: none; border: 1px solid var(--border); border-radius: var(--radius); color: var(--muted); padding: 8px; cursor: pointer; font-size: 13px; transition: all .15s;">
+          ↑ Import CSV set
+        </button>
+      </div>
       <div id="set-metrics">
         <div class="metric">
           <div class="metric-label">Tracks</div>
@@ -197,6 +224,12 @@
     </div>
     <div id="set-list"></div>
     <div id="set-footer">
+      <button id="export-btn" style="display: none; margin-bottom: 8px;">↓ Export as…</button>
+      <select id="export-format" style="display: none; width: 100%; margin-bottom: 8px;">
+        <option value="json">JSON format</option>
+        <option value="csv">CSV spreadsheet</option>
+        <option value="txt">Plain text</option>
+      </select>
       <button id="clear-btn">Clear set</button>
     </div>
   </div>
@@ -258,6 +291,7 @@ function transitionLabel(trackA, trackB) {
 let allTracks = [];
 let setTracks = [];
 let filtered  = [];
+let draggedFromIndex = null;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const trackList   = document.getElementById('track-list');
@@ -412,6 +446,8 @@ function renderSet() {
 
     const wrap = document.createElement('div');
     wrap.className = 'set-track';
+    wrap.draggable = true;
+    wrap.dataset.index = i;
     wrap.innerHTML = `
       <div class="set-track-inner">
         <span class="set-num">${i+1}</span>
@@ -423,12 +459,274 @@ function renderSet() {
       </div>
     `;
     wrap.querySelector('.remove-btn').addEventListener('click', () => removeFromSet(i));
+    
+    // Drag and drop events
+    wrap.addEventListener('dragstart', (e) => {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', wrap.innerHTML);
+      wrap.classList.add('dragging');
+      draggedFromIndex = i;
+    });
+    
+    wrap.addEventListener('dragend', () => {
+      wrap.classList.remove('dragging');
+      document.querySelectorAll('.set-track').forEach(t => t.classList.remove('drag-over'));
+    });
+    
+    wrap.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (!wrap.classList.contains('dragging')) {
+        wrap.classList.add('drag-over');
+      }
+    });
+    
+    wrap.addEventListener('dragleave', () => {
+      wrap.classList.remove('drag-over');
+    });
+    
+    wrap.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (draggedFromIndex !== null && draggedFromIndex !== i) {
+        const draggedTrack = setTracks[draggedFromIndex];
+        setTracks.splice(draggedFromIndex, 1);
+        setTracks.splice(i, 0, draggedTrack);
+        renderSet();
+        renderLibrary();
+      }
+    });
+    
     setList.appendChild(wrap);
   });
+  
+  // Show/hide export button based on set content
+  const exportBtn = document.getElementById('export-btn');
+  const exportFormat = document.getElementById('export-format');
+  if (setTracks.length > 0) {
+    exportBtn.style.display = 'block';
+    exportFormat.style.display = 'block';
+  } else {
+    exportBtn.style.display = 'none';
+    exportFormat.style.display = 'none';
+  }
 }
 
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Export set ────────────────────────────────────────────────────────────
+function generateTimestamp() {
+  const now = new Date();
+  return now.toISOString().split('T')[0] + '_' + 
+    String(now.getHours()).padStart(2,'0') + 
+    String(now.getMinutes()).padStart(2,'0');
+}
+
+function exportToJSON() {
+  const data = {
+    exportDate: new Date().toISOString(),
+    tracks: setTracks.map((t, i) => ({
+      position: i + 1,
+      name: t.name,
+      artist: t.artist,
+      bpm: t.bpm,
+      key: t.key,
+      duration: t.duration,
+      genre: t.genre,
+    })),
+    stats: {
+      totalTracks: setTracks.length,
+      totalRuntime: setTracks.reduce((s, t) => s + t.duration, 0),
+      bpmRange: setTracks.length > 0 ? 
+        `${Math.min(...setTracks.map(t => t.bpm))}–${Math.max(...setTracks.map(t => t.bpm))}` : 
+        '—',
+    }
+  };
+  
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const filename = `set_${generateTimestamp()}.json`;
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportToCSV() {
+  let csv = 'Position,Name,Artist,BPM,Key,Duration (sec),Genre\n';
+  
+  setTracks.forEach((t, i) => {
+    const row = [
+      i + 1,
+      `"${t.name.replace(/"/g, '""')}"`,
+      `"${(t.artist || '').replace(/"/g, '""')}"`,
+      t.bpm,
+      t.key,
+      t.duration,
+      `"${(t.genre || '').replace(/"/g, '""')}"`,
+    ];
+    csv += row.join(',') + '\n';
+  });
+  
+  csv += '\n\n';
+  csv += `Total Tracks,${setTracks.length}\n`;
+  csv += `Total Runtime (seconds),${setTracks.reduce((s, t) => s + t.duration, 0)}\n`;
+  if (setTracks.length > 0) {
+    const bpms = setTracks.map(t => t.bpm);
+    csv += `BPM Range,${Math.min(...bpms)}–${Math.max(...bpms)}\n`;
+  }
+  
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const filename = `set_${generateTimestamp()}.csv`;
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportToText() {
+  let text = `DJ Set Export\nGenerated: ${new Date().toLocaleString()}\n`;
+  text += '='.repeat(80) + '\n\n';
+  
+  setTracks.forEach((t, i) => {
+    text += `${String(i+1).padStart(2, ' ')}. ${t.name}\n`;
+    text += `    Artist: ${t.artist || '—'}\n`;
+    text += `    ${t.bpm} BPM | Key: ${t.key} | ${fmt(t.duration)}\n`;
+    text += `    Genre: ${t.genre || '—'}\n`;
+    
+    if (i < setTracks.length - 1) {
+      const next = setTracks[i + 1];
+      const { label } = transitionLabel(t, next);
+      text += `    → ${label}\n`;
+    }
+    text += '\n';
+  });
+  
+  text += '\n' + '='.repeat(80) + '\n';
+  const totalSecs = setTracks.reduce((s, t) => s + t.duration, 0);
+  text += `Total Tracks: ${setTracks.length}\n`;
+  text += `Total Runtime: ${fmtRuntime(totalSecs)}\n`;
+  if (setTracks.length > 0) {
+    const bpms = setTracks.map(t => t.bpm);
+    text += `BPM Range: ${Math.min(...bpms)}–${Math.max(...bpms)}\n`;
+  }
+  
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const filename = `set_${generateTimestamp()}.txt`;
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function handleExport() {
+  if (setTracks.length === 0) {
+    alert('Your set is empty. Add tracks before exporting.');
+    return;
+  }
+  
+  const format = document.getElementById('export-format').value;
+  if (format === 'json') exportToJSON();
+  else if (format === 'csv') exportToCSV();
+  else if (format === 'txt') exportToText();
+}
+
+// ── Import set from CSV ────────────────────────────────────────────────────
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let insideQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      insideQuotes = !insideQuotes;
+    } else if (char === ',' && !insideQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function parseCSV(text) {
+  const lines = text.split('\n').filter(l => l.trim());
+  if (lines.length < 2) return [];
+  
+  const header = parseCSVLine(lines[0]);
+  const tracks = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+    const row = {};
+    header.forEach((col, idx) => {
+      row[col.toLowerCase().trim()] = values[idx] || '';
+    });
+    
+    if (row.name || row.track) {
+      tracks.push({
+        name: row.name || row.track || '',
+        artist: row.artist || '',
+        bpm: parseFloat(row.bpm) || 0,
+        key: row.key || '',
+      });
+    }
+  }
+  
+  return tracks;
+}
+
+
+function handleImport(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const csv = e.target.result;
+      const importedTracks = parseCSV(csv);
+      
+      if (importedTracks.length === 0) {
+        alert('No valid tracks found in CSV file.');
+        return;
+      }
+      
+      // Add duration field for compatibility with renderSet (default to 0)
+      const tracksWithDefaults = importedTracks.map(t => ({
+        ...t,
+        id: Math.random().toString(36).substr(2, 9),
+        duration: t.duration || 300, // Default 5 mins
+        genre: t.genre || '',
+        play_count: 0,
+      }));
+      
+      setTracks = tracksWithDefaults;
+      renderSet();
+      renderLibrary();
+      
+      alert(`✓ Loaded ${importedTracks.length} tracks\n\nJump analysis ready. Drag tracks to reorder.`);
+    } catch (err) {
+      alert(`Error parsing CSV: ${err.message}`);
+    }
+  };
+  reader.readAsText(file);
 }
 
 // ── Events ────────────────────────────────────────────────────────────────
@@ -442,6 +740,19 @@ document.getElementById('clear-btn').addEventListener('click', () => {
   renderSet();
   renderLibrary();
 });
+document.getElementById('export-btn').addEventListener('click', handleExport);
+
+document.getElementById('import-btn').addEventListener('click', () => {
+  document.getElementById('import-file-input').click();
+});
+
+document.getElementById('import-file-input').addEventListener('change', (e) => {
+  if (e.target.files[0]) {
+    handleImport(e.target.files[0]);
+    e.target.value = ''; // Reset file input
+  }
+});
+
 // ── Load library.json ─────────────────────────────────────────────────────
 fetch('library.json')
   .then(r => {
