@@ -42,7 +42,3 @@ This creates `library.json` with 8 sample tracks spanning keys 1A through 8A, pe
 - `sample_library.xml` - Demo data (safe to commit)
 - `RKlibrary.xml` - Your personal library (ignored by git)
 - `library.json` - Processed track data (ignored by git)
-
-## Privacy
-
-Your personal music library data (`RKlibrary.xml` and `library.json`) are ignored by git and never committed. Only the demo sample is included in the repository.
